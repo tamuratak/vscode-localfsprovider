@@ -1,27 +1,26 @@
 import * as fs from 'fs'
-import * as path from 'path'
 import * as vscode from 'vscode'
 
 
-export async function activate(context: vscode.ExtensionContext) {
-    const localfs = await openLocalFs()
+export function activate(context: vscode.ExtensionContext) {
+    const localfs = new LocalFs()
     if (!localfs) {
         return
     }
     console.log('LocalFS says "Hello"')
     context.subscriptions.push(vscode.workspace.registerFileSystemProvider('localfs', localfs, { isCaseSensitive: true }))
     context.subscriptions.push(vscode.commands.registerCommand('localfs.workspaceInit', _ => {
-        vscode.workspace.updateWorkspaceFolders(0, 0, { uri: vscode.Uri.parse('localfs:/'), name: 'localfs - Sample' })
+        openLocalFsWorkspace()
     }))
 }
 
-async function openLocalFs(): Promise<LocalFs | undefined> {
+async function openLocalFsWorkspace(): Promise<boolean | undefined> {
     const uris = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false })
     const uri = uris?.[0]
     if (!uri) {
         return
     }
-    return new LocalFs(uri)
+    return vscode.workspace.updateWorkspaceFolders(0, 0, { uri, name: 'localfs - Sample' })
 }
 
 interface FileTypeBase {
@@ -32,11 +31,6 @@ interface FileTypeBase {
 
 export class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
-    private readonly localDirPath: string
-
-    constructor(localDir: vscode.Uri) {
-        this.localDirPath = localDir.fsPath
-    }
 
     private getFileType(ent: FileTypeBase): vscode.FileType {
         if (ent.isSymbolicLink()) {
@@ -51,13 +45,13 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     createDirectory(uri: vscode.Uri) {
-        const dirPath = path.join(this.localDirPath, uri.fsPath)
+        const dirPath = uri.fsPath
         return fs.promises.mkdir(dirPath, {recursive: true})
     }
 
     async copy(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
-        const sourcePath = path.join(this.localDirPath, source.fsPath)
-        const targetPath = path.join(this.localDirPath, target.fsPath)
+        const sourcePath = source.fsPath
+        const targetPath = target.fsPath
         const buf = await fs.promises.readFile(sourcePath)
         if (!fs.existsSync(targetPath) || options?.overwrite) {
             return fs.promises.writeFile(targetPath, buf)
@@ -65,12 +59,12 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     delete(uri: vscode.Uri) {
-        const filePath = path.join(this.localDirPath, uri.fsPath)
+        const filePath = uri.fsPath
         return fs.promises.unlink(filePath)
     }
 
     async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-        const dirPath = path.join(this.localDirPath, uri.fsPath)
+        const dirPath = uri.fsPath
         const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
         const cb: (e: fs.Dirent) => [string, vscode.FileType] = ent => [ent.name, this.getFileType(ent)]
         const result = entries.map(cb)
@@ -78,14 +72,14 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     async readFile(uri: vscode.Uri) {
-        const filePath = path.join(this.localDirPath, uri.fsPath)
+        const filePath = uri.fsPath
         const buf = await fs.promises.readFile(filePath)
         return new Uint8Array(buf)
     }
 
     rename(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
-        const sourcePath = path.join(this.localDirPath, source.fsPath)
-        const targetPath = path.join(this.localDirPath, target.fsPath)
+        const sourcePath = source.fsPath
+        const targetPath = target.fsPath
         if (!fs.existsSync(targetPath) || options?.overwrite) {
             return fs.promises.rename(sourcePath, targetPath)
         }
@@ -93,7 +87,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     async stat(uri: vscode.Uri) {
-        const filePath = path.join(this.localDirPath, uri.fsPath)
+        const filePath = uri.fsPath
         const statret = await fs.promises.stat(filePath)
         const ret: vscode.FileStat = {
             ctime: statret.ctimeMs,
@@ -105,7 +99,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }) {
-        const filePath = path.join(this.localDirPath, uri.fsPath)
+        const filePath = uri.fsPath
         if (fs.existsSync(filePath)) {
             if (options.overwrite) {
                 fs.promises.writeFile(filePath, content)
@@ -118,7 +112,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     watch(uri: vscode.Uri, options: { recursive: boolean, excludes: string[] }) {
-        const filePath = path.join(this.localDirPath, uri.fsPath)
+        const filePath = uri.fsPath
         const watcher = fs.watch(filePath, { recursive: options.recursive }, () => {
             this.onDidChangeFileEventCbSet.forEach(cb => {
                 cb([{type: vscode.FileChangeType.Changed, uri}])
