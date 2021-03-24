@@ -38,21 +38,21 @@ export class LocalFs implements vscode.FileSystemProvider {
 
     constructor() {
         this.fswatcher.on('change', (filePath: string) => {
-            console.log(`change: ${filePath}`)
             this.onDidChangeFileEventCbSet.forEach( cb => {
-                cb([{type: vscode.FileChangeType.Changed, uri: vscode.Uri.file(filePath)}])
+                const fileUri = vscode.Uri.file(filePath)
+                cb([{ type: vscode.FileChangeType.Changed, uri: fileUri.with({scheme: 'localfs'}) }])
             })
         })
         this.fswatcher.on('add', (filePath: string) => {
-            console.log(`add: ${filePath}`)
             this.onDidChangeFileEventCbSet.forEach( cb => {
-                cb([{type: vscode.FileChangeType.Created, uri: vscode.Uri.file(filePath)}])
+                const fileUri = vscode.Uri.file(filePath)
+                cb([{ type: vscode.FileChangeType.Created, uri: fileUri.with({scheme: 'localfs'}) }])
             })
         })
         this.fswatcher.on('unlink', (filePath: string) => {
-            console.log(`unlink: ${filePath}`)
             this.onDidChangeFileEventCbSet.forEach( cb => {
-                cb([{type: vscode.FileChangeType.Deleted, uri: vscode.Uri.file(filePath)}])
+                const fileUri = vscode.Uri.file(filePath)
+                cb([{ type: vscode.FileChangeType.Deleted, uri: fileUri.with({scheme: 'localfs'}) }])
             })
         })
     }
@@ -79,7 +79,6 @@ export class LocalFs implements vscode.FileSystemProvider {
 
     createDirectory(uri: vscode.Uri) {
         const dirPath = uri.fsPath
-        console.log(`createDirectory: ${dirPath}`)
         return fs.promises.mkdir(dirPath, {recursive: true})
     }
 
@@ -94,14 +93,14 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     delete(uri: vscode.Uri) {
+        this.assertExists(uri)
         const filePath = uri.fsPath
         return fs.promises.unlink(filePath)
     }
 
     async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
-        console.log(`readDirectory called:${uri.toString(true)}`)
+        this.assertExists(uri)
         const dirPath = uri.fsPath
-
         const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
         const cb: (e: fs.Dirent) => [string, vscode.FileType] = ent => [ent.name, this.getFileType(ent)]
         const result = entries.map(cb)
@@ -154,40 +153,10 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     watch(uri: vscode.Uri) {
-        console.log(`watch: ${uri.toString(true)}`)
-/*        try {
-        console.log(`watch fsPath: ${uri.fsPath}`)
-        const fswatcher = chokidar.watch([uri.fsPath], {usePolling: true})
-        fswatcher.on('change', (filePath: string) => {
-            console.log(`change: ${filePath}`)
-            this.onDidChangeFileEventCbSet.forEach( cb => {
-                cb([{type: vscode.FileChangeType.Changed, uri: vscode.Uri.file(filePath)}])
-            })
-        })
-        fswatcher.on('add', (filePath: string) => {
-            console.log(`add: ${filePath}`)
-            this.onDidChangeFileEventCbSet.forEach( cb => {
-                cb([{type: vscode.FileChangeType.Created, uri: vscode.Uri.file(filePath)}])
-            })
-        })
-        fswatcher.on('unlink', (filePath: string) => {
-            console.log(`unlink: ${filePath}`)
-            this.onDidChangeFileEventCbSet.forEach( cb => {
-                cb([{type: vscode.FileChangeType.Deleted, uri: vscode.Uri.file(filePath)}])
-            })
-        })
-        const diposable = new vscode.Disposable( () => fswatcher.close() )
+        const filePath = uri.fsPath
+        this.fswatcher.add(filePath)
+        const diposable = new vscode.Disposable( () => this.fswatcher.unwatch(filePath) )
         return diposable
-    } catch(e) {
-        console.log('watch error')
-        console.log(e)
-        throw e
-    } */
-    console.log(`watch: ${uri.toString(true)}`)
-    const filePath = uri.fsPath
-    this.fswatcher.add(filePath)
-    const diposable = new vscode.Disposable( () => this.fswatcher.unwatch(filePath) )
-    return diposable
     }
 
     onDidChangeFile(cb: (events: vscode.FileChangeEvent[]) => void) {
