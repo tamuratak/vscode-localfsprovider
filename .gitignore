@@ -1,3 +1,6 @@
+*.vsix
+out/
+
 # Logs
 logs
 *.log

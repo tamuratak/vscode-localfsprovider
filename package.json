@@ -1,0 +1,69 @@
+{
+  "name": "vscode-localfsprovider",
+  "displayName": "Local File System Provider",
+  "version": "0.1.0",
+  "publisher": "tamuratak",
+  "license": "MIT",
+  "description": "Local File System Provider",
+  "homepage": "https://github.com/tamuratak/vscode-localfsprovider",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tamuratak/vscode-localfsprovider.git"
+  },
+  "engines": {
+    "vscode": "^1.51.0"
+  },
+  "main": "./out/src/main.js",
+  "activationEvents": [
+    "*"
+  ],
+  "categories": [
+    "Other"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "localfs.workspaceInit",
+        "title": "Setup Workspace",
+        "category": "LocalFS"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "localfs.workspaceInit",
+          "when": "workbenchState != workspace"
+        }
+      ]
+    }
+  },
+  "keywords": [
+    "lezer",
+    "Lezer"
+  ],
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^12",
+    "@types/vscode": "1.48.0",
+    "@typescript-eslint/eslint-plugin": "^4.19.0",
+    "@typescript-eslint/parser": "^4.19.0",
+    "eslint": "^7.22.0",
+    "husky": "^4.3.8",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.2.3",
+    "vsce": "^1.87.0"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "eslint --cache --ext .ts ."
+    }
+  },
+  "scripts": {
+    "clean": "rimraf out/ .eslintcache",
+    "compile": "tsc -p ./",
+    "lint": "eslint --cache --ext .ts .",
+    "lint:fix": "eslint --fix --cache --ext .ts .",
+    "release": "npm run clean && npm run lint && npm run compile && vsce package",
+    "watch": "tsc -watch -p ./"
+  }
+}
