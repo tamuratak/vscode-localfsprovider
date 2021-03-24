@@ -3,17 +3,25 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 
 
-export function activate(context: vscode.ExtensionContext) {
-
+export async function activate(context: vscode.ExtensionContext) {
+    const localfs = await openLocalFs()
+    if (!localfs) {
+        return
+    }
     console.log('LocalFS says "Hello"')
-
-    const localfs = new LocalFs()
     context.subscriptions.push(vscode.workspace.registerFileSystemProvider('localfs', localfs, { isCaseSensitive: true }))
-
-
     context.subscriptions.push(vscode.commands.registerCommand('localfs.workspaceInit', _ => {
         vscode.workspace.updateWorkspaceFolders(0, 0, { uri: vscode.Uri.parse('localfs:/'), name: 'localfs - Sample' })
     }))
+}
+
+async function openLocalFs(): Promise<LocalFs | undefined> {
+    const uris = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false })
+    const uri = uris?.[0]
+    if (!uri) {
+        return
+    }
+    return new LocalFs(uri)
 }
 
 interface FileTypeBase {
@@ -22,13 +30,12 @@ interface FileTypeBase {
     isSymbolicLink(): boolean
 }
 
-
 export class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
     private readonly localDirPath: string
 
-    constructor(localDirPath: string) {
-        this.localDirPath = localDirPath
+    constructor(localDir: vscode.Uri) {
+        this.localDirPath = localDir.fsPath
     }
 
     private getFileType(ent: FileTypeBase): vscode.FileType {
