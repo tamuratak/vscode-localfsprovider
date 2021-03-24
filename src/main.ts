@@ -21,9 +21,25 @@ async function openLocalFsWorkspace(): Promise<boolean | undefined> {
     if (!uri) {
         return
     }
-    const localfsUri = uri.with({scheme: 'localfs'})
+    const localfsUri = toLocalFsUri(uri.fsPath)
     console.log(localfsUri.toString(true))
     return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: localfsUri, name: 'localfs - Sample' })
+}
+
+function toFilePath(uri: vscode.Uri) {
+    if (uri.scheme === 'file') {
+        console.log(`${uri.toString(true)}`)
+        return uri.fsPath
+    } else if (uri.scheme === 'localfs') {
+        return uri.fsPath.replace(/^\/virtual_local_fs/, '')
+    } else {
+        throw new Error(uri.toString(true))
+    }
+}
+
+function toLocalFsUri(filePath: string) {
+    const uri = vscode.Uri.file(filePath)
+    return uri.with({ scheme: 'localfs', path: '/virtual_local_fs' + uri.path })
 }
 
 interface FileTypeBase {
@@ -39,27 +55,30 @@ export class LocalFs implements vscode.FileSystemProvider {
     constructor() {
         this.fswatcher.on('change', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
-                const fileUri = vscode.Uri.file(filePath)
-                cb([{ type: vscode.FileChangeType.Changed, uri: fileUri.with({scheme: 'localfs'}) }])
+                const uri = toLocalFsUri(filePath)
+                cb([{ type: vscode.FileChangeType.Changed, uri }])
             })
         })
         this.fswatcher.on('add', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
-                const fileUri = vscode.Uri.file(filePath)
-                cb([{ type: vscode.FileChangeType.Created, uri: fileUri.with({scheme: 'localfs'}) }])
+                const uri = toLocalFsUri(filePath)
+                console.log(uri.toString(true))
+                cb([{ type: vscode.FileChangeType.Created, uri }])
             })
         })
         this.fswatcher.on('unlink', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
-                const fileUri = vscode.Uri.file(filePath)
-                cb([{ type: vscode.FileChangeType.Deleted, uri: fileUri.with({scheme: 'localfs'}) }])
+                const uri = toLocalFsUri(filePath)
+                cb([{ type: vscode.FileChangeType.Deleted, uri }])
             })
         })
     }
 
+
     assertExists(...uris: vscode.Uri[]) {
         uris.forEach(uri => {
-            if (!fs.existsSync(uri.fsPath)) {
+            const filePath = toFilePath(uri)
+            if (!fs.existsSync(filePath)) {
                 throw vscode.FileSystemError.FileNotFound(uri)
             }
         })
@@ -78,14 +97,14 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     createDirectory(uri: vscode.Uri) {
-        const dirPath = uri.fsPath
+        const dirPath = toFilePath(uri)
         return fs.promises.mkdir(dirPath, {recursive: true})
     }
 
     async copy(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
         this.assertExists(source)
-        const sourcePath = source.fsPath
-        const targetPath = target.fsPath
+        const sourcePath = toFilePath(source)
+        const targetPath = toFilePath(target)
         const buf = await fs.promises.readFile(sourcePath)
         if (!fs.existsSync(targetPath) || options?.overwrite) {
             return fs.promises.writeFile(targetPath, buf)
@@ -94,13 +113,13 @@ export class LocalFs implements vscode.FileSystemProvider {
 
     delete(uri: vscode.Uri) {
         this.assertExists(uri)
-        const filePath = uri.fsPath
+        const filePath = toFilePath(uri)
         return fs.promises.unlink(filePath)
     }
 
     async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
         this.assertExists(uri)
-        const dirPath = uri.fsPath
+        const dirPath = toFilePath(uri)
         const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
         const cb: (e: fs.Dirent) => [string, vscode.FileType] = ent => [ent.name, this.getFileType(ent)]
         const result = entries.map(cb)
@@ -109,17 +128,15 @@ export class LocalFs implements vscode.FileSystemProvider {
 
     async readFile(uri: vscode.Uri) {
         this.assertExists(uri)
-        const filePath = uri.fsPath
-        console.log(`readFile: ${filePath}`)
+        const filePath = toFilePath(uri)
         const buf = await fs.promises.readFile(filePath)
         return new Uint8Array(buf)
     }
 
     rename(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
         this.assertExists(source)
-        console.log(`rename called:${source.toString(true)}`)
-        const sourcePath = source.fsPath
-        const targetPath = target.fsPath
+        const sourcePath = toFilePath(source)
+        const targetPath = toFilePath(target)
         if (!fs.existsSync(targetPath) || options?.overwrite) {
             return fs.promises.rename(sourcePath, targetPath)
         }
@@ -128,7 +145,7 @@ export class LocalFs implements vscode.FileSystemProvider {
 
     async stat(uri: vscode.Uri) {
         this.assertExists(uri)
-        const filePath = uri.fsPath
+        const filePath = toFilePath(uri)
         const statret = await fs.promises.stat(filePath)
         const ret: vscode.FileStat = {
             ctime: statret.ctimeMs,
@@ -140,7 +157,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }) {
-        const filePath = uri.fsPath
+        const filePath = toFilePath(uri)
         if (fs.existsSync(filePath)) {
             if (options.overwrite) {
                 fs.promises.writeFile(filePath, content)
@@ -153,7 +170,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     watch(uri: vscode.Uri) {
-        const filePath = uri.fsPath
+        const filePath = toFilePath(uri)
         this.fswatcher.add(filePath)
         const diposable = new vscode.Disposable( () => this.fswatcher.unwatch(filePath) )
         return diposable
