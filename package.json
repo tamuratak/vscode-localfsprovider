@@ -15,7 +15,7 @@
   },
   "main": "./out/src/main.js",
   "activationEvents": [
-    "*"
+    "onCommand:localfs.workspaceInit"
   ],
   "categories": [
     "Other"
@@ -37,11 +37,9 @@
       ]
     }
   },
-  "keywords": [
-    "lezer",
-    "Lezer"
-  ],
-  "dependencies": {},
+  "dependencies": {
+    "chokidar": "3.5.1"
+  },
   "devDependencies": {
     "@types/node": "^12",
     "@types/vscode": "1.48.0",

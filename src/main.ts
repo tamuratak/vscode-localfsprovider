@@ -1,3 +1,4 @@
+import * as chokidar from 'chokidar'
 import * as fs from 'fs'
 import * as vscode from 'vscode'
 
@@ -31,6 +32,25 @@ interface FileTypeBase {
 
 export class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
+    private readonly fswatcher = chokidar.watch([], {usePolling: true})
+
+    constructor() {
+        this.fswatcher.on('change', (filePath: string) => {
+            this.onDidChangeFileEventCbSet.forEach( cb => {
+                cb([{type: vscode.FileChangeType.Changed, uri: vscode.Uri.file(filePath)}])
+            })
+        })
+        this.fswatcher.on('add', (filePath: string) => {
+            this.onDidChangeFileEventCbSet.forEach( cb => {
+                cb([{type: vscode.FileChangeType.Created, uri: vscode.Uri.file(filePath)}])
+            })
+        })
+        this.fswatcher.on('unlink', (filePath: string) => {
+            this.onDidChangeFileEventCbSet.forEach( cb => {
+                cb([{type: vscode.FileChangeType.Deleted, uri: vscode.Uri.file(filePath)}])
+            })
+        })
+    }
 
     private getFileType(ent: FileTypeBase): vscode.FileType {
         if (ent.isSymbolicLink()) {
@@ -111,14 +131,10 @@ export class LocalFs implements vscode.FileSystemProvider {
         }
     }
 
-    watch(uri: vscode.Uri, options: { recursive: boolean, excludes: string[] }) {
+    watch(uri: vscode.Uri) {
         const filePath = uri.fsPath
-        const watcher = fs.watch(filePath, { recursive: options.recursive }, () => {
-            this.onDidChangeFileEventCbSet.forEach(cb => {
-                cb([{type: vscode.FileChangeType.Changed, uri}])
-            })
-        })
-        const diposable = new vscode.Disposable(() => watcher.close())
+        this.fswatcher.add(filePath)
+        const diposable = new vscode.Disposable( () => this.fswatcher.unwatch(filePath) )
         return diposable
     }
 
