@@ -38,7 +38,6 @@ export class LocalFs implements vscode.FileSystemProvider {
         this.fswatcher.on('add', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
                 const uri = this.toLocalFsUri(filePath)
-                console.log(uri.toString(true))
                 cb([{ type: vscode.FileChangeType.Created, uri }])
             })
         })
@@ -52,7 +51,6 @@ export class LocalFs implements vscode.FileSystemProvider {
 
     toFilePath(uri: vscode.Uri) {
         if (uri.scheme === 'file') {
-            console.log(`${uri.toString(true)}`)
             return uri.fsPath
         } else if (uri.scheme === 'localfs') {
             const rootDirUriString = this.globalState.get('dummyhost') as string
@@ -86,7 +84,6 @@ export class LocalFs implements vscode.FileSystemProvider {
         }
         this.globalState.update('dummyhost', uri.toString(true))
         const workspaceUri = vscode.Uri.parse('localfs://dummyhost/')
-        console.log(uri.toString(true))
         return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: workspaceUri, name: 'localfs - Sample' })
     }
 
@@ -184,7 +181,10 @@ export class LocalFs implements vscode.FileSystemProvider {
         }
     }
 
-    watch(uri: vscode.Uri) {
+    watch(uri: vscode.Uri, options: { recursive: boolean, excludes: string[] }) {
+        if (options) {
+            console.log('localfs watch: options ignored.')
+        }
         const filePath = this.toFilePath(uri)
         this.fswatcher.add(filePath)
         const diposable = new vscode.Disposable( () => this.fswatcher.unwatch(filePath) )
