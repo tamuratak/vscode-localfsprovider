@@ -137,7 +137,7 @@ export class LocalFs implements vscode.FileSystemProvider {
         }
     }
 
-    delete(uri: vscode.Uri) {
+    async delete(uri: vscode.Uri) {
         this.addLogMessage(`delete called: ${uri.toString(true)}`)
         this.assertExists(uri)
         const filePath = this.toFilePath(uri)
