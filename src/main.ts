@@ -120,7 +120,7 @@ export class LocalFs implements vscode.FileSystemProvider {
         }
     }
 
-    createDirectory(uri: vscode.Uri) {
+    async createDirectory(uri: vscode.Uri) {
         this.addLogMessage(`createDirectory called: ${uri.toString(true)}`)
         const dirPath = this.toFilePath(uri)
         return fs.promises.mkdir(dirPath, {recursive: true})
@@ -162,7 +162,7 @@ export class LocalFs implements vscode.FileSystemProvider {
         return new Uint8Array(buf)
     }
 
-    rename(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
+    async rename(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
         this.addLogMessage(`rename called: source: ${source.toString(true)} target: ${target.toString(true)}`)
         this.assertExists(source)
         const sourcePath = this.toFilePath(source)
@@ -187,18 +187,19 @@ export class LocalFs implements vscode.FileSystemProvider {
         return ret
     }
 
-    writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }) {
+    async writeFile(uri: vscode.Uri, content: Uint8Array, options: { create: boolean, overwrite: boolean }) {
         this.addLogMessage(`writeFile called: ${uri.toString(true)}`)
         const filePath = this.toFilePath(uri)
         if (fs.existsSync(filePath)) {
             if (options.overwrite) {
-                fs.promises.writeFile(filePath, content)
+                return fs.promises.writeFile(filePath, content)
             }
         } else {
             if (options.create) {
-                fs.promises.writeFile(filePath, content)
+                return fs.promises.writeFile(filePath, content)
             }
         }
+        return
     }
 
     watch(uri: vscode.Uri, options: { recursive: boolean, excludes: string[] }) {
