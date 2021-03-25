@@ -53,19 +53,24 @@ export class LocalFs implements vscode.FileSystemProvider {
         })
     }
 
+    getRootDir() {
+        const rootDirUriString = this.globalState.get('dummyhost') as string
+        if (!rootDirUriString) {
+            throw new vscode.FileSystemError('rootDir not found.')
+        }
+        const rootDir = vscode.Uri.parse(rootDirUriString)
+        return rootDir
+    }
+
     toFilePath(uri: vscode.Uri) {
         if (uri.scheme === 'file') {
             return uri.fsPath
         } else if (uri.scheme === 'localfs') {
-            const rootDirUriString = this.globalState.get('dummyhost') as string
-            if (!rootDirUriString) {
-                throw new Error(uri.toString(true))
-            }
-            const rootDir = vscode.Uri.parse(rootDirUriString)
+            const rootDir = this.getRootDir()
             const fileUri = vscode.Uri.joinPath(rootDir, uri.path)
             return fileUri.fsPath
         } else {
-            throw new Error(uri.toString(true))
+            throw new vscode.FileSystemError(`Unknown scheme: ${uri.toString(true)}`)
         }
     }
 
@@ -74,12 +79,11 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     toLocalFsUri(filePath: string) {
-        const rootDirUriString = this.globalState.get('dummyhost') as string
-        if (!rootDirUriString) {
-            throw new Error(filePath)
+        const rootDir = this.getRootDir()
+        let uriPath = filePath
+        if (uriPath.startsWith(rootDir.fsPath)) {
+            uriPath = uriPath.slice(rootDir.fsPath.length)
         }
-        const rootDir = vscode.Uri.parse(rootDirUriString)
-        const uriPath = filePath.replace(rootDir.fsPath, '')
         const uri = vscode.Uri.joinPath(vscode.Uri.parse('localfs://dummyhost/'), uriPath)
         return uri
     }
