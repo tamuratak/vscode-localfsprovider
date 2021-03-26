@@ -166,17 +166,27 @@ export class LocalFs implements vscode.FileSystemProvider {
         this.assertExists(source)
         const sourcePath = this.toFilePath(source)
         const targetPath = this.toFilePath(target)
+        this.assertParentDirExists(targetPath)
         const buf = await fs.promises.readFile(sourcePath)
-        if (!fs.existsSync(targetPath) || options?.overwrite) {
-            return fs.promises.writeFile(targetPath, buf)
+        if (fs.existsSync(targetPath) && !options?.overwrite) {
+            const msg = `copy failed. The target file exists: ${targetPath}`
+            this.addLogMessage(msg)
+            throw vscode.FileSystemError.FileExists(msg)
         }
+        return this.catchPermissionError(
+            () => fs.promises.writeFile(targetPath, buf),
+            targetPath
+        )
     }
 
     async delete(uri: vscode.Uri) {
         this.addLogMessage(`delete called: ${uri.toString(true)}`)
         this.assertExists(uri)
         const filePath = this.toFilePath(uri)
-        return fs.promises.unlink(filePath)
+        return this.catchPermissionError(
+            () => fs.promises.unlink(filePath),
+            filePath
+        )
     }
 
     async readDirectory(uri: vscode.Uri): Promise<[string, vscode.FileType][]> {
@@ -202,12 +212,16 @@ export class LocalFs implements vscode.FileSystemProvider {
         this.assertExists(source)
         const sourcePath = this.toFilePath(source)
         const targetPath = this.toFilePath(target)
-        if (!fs.existsSync(targetPath) || options?.overwrite) {
-            return fs.promises.rename(sourcePath, targetPath)
-        } else {
-            this.addLogMessage(`rename failed. A target file exists: ${target.toString(true)}`)
-            return
+        this.assertParentDirExists(targetPath)
+        if (fs.existsSync(targetPath) && !options?.overwrite) {
+            const msg = `rename failed. A target file exists: ${target.toString(true)}`
+            this.addLogMessage(msg)
+            throw vscode.FileSystemError.FileExists(msg)
         }
+        return this.catchPermissionError(
+            () => fs.promises.rename(sourcePath, targetPath),
+            targetPath
+        )
     }
 
     async stat(uri: vscode.Uri) {
