@@ -1,5 +1,6 @@
 import * as chokidar from 'chokidar'
 import * as fs from 'fs'
+import * as path from 'path'
 import * as vscode from 'vscode'
 
 
@@ -14,7 +15,6 @@ export function activate(context: vscode.ExtensionContext) {
         localfs.openLocalFsWorkspace()
     }))
 }
-
 
 interface FileTypeBase {
     isFile(): boolean,
@@ -175,7 +175,6 @@ export class LocalFs implements vscode.FileSystemProvider {
             this.addLogMessage(`rename failed. A target file exists: ${target.toString(true)}`)
             return
         }
-        return
     }
 
     async stat(uri: vscode.Uri) {
@@ -197,17 +196,41 @@ export class LocalFs implements vscode.FileSystemProvider {
         const filePath = this.toFilePath(uri)
         if (fs.existsSync(filePath)) {
             if (options.overwrite) {
-                return fs.promises.writeFile(filePath, content)
+                return this.writeFileImpl(filePath, content)
             } else {
-                this.addLogMessage(`writeFile failes. The file exists: ${uri.toString(true)}`)
-                return
+                const msg = `writeFile failes. The file exists: ${uri.toString(true)}`
+                this.addLogMessage(msg)
+                throw vscode.FileSystemError.FileExists(msg)
             }
         } else {
             if (options.create) {
-                return fs.promises.writeFile(filePath, content)
+                const dirname = path.dirname(filePath)
+                if (!fs.existsSync(dirname)) {
+                    const msg = `writeFile failes. The dir does not exist: ${uri.toString(true)}`
+                    this.addLogMessage(msg)
+                    throw vscode.FileSystemError.FileNotFound(msg)
+                }
+                return this.writeFileImpl(filePath, content)
             } else {
-                this.addLogMessage(`writeFile failes. The file does not exist: ${uri.toString(true)}`)
-                return
+                const msg = `writeFile failes. The file does not exist: ${uri.toString(true)}`
+                this.addLogMessage(msg)
+                throw vscode.FileSystemError.FileNotFound(msg)
+            }
+        }
+    }
+
+    writeFileImpl(filePath: string, content: Uint8Array) {
+        try {
+            return fs.promises.writeFile(filePath, content)
+        } catch (err) {
+            if (err.code === 'EACCES') {
+                const msg = `writeFile failes. EACCES: ${filePath}`
+                this.addLogMessage(msg)
+                throw vscode.FileSystemError.NoPermissions(msg)
+            } else {
+                const msg = `writeFile unknown error ${err.message}: ${filePath}`
+                this.addLogMessage(msg)
+                throw new vscode.FileSystemError(msg)
             }
         }
     }
