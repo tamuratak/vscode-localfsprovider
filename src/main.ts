@@ -83,6 +83,8 @@ export class LocalFs implements vscode.FileSystemProvider {
         let uriPath = filePath
         if (uriPath.startsWith(rootDir.fsPath)) {
             uriPath = uriPath.slice(rootDir.fsPath.length)
+        } else {
+            throw new vscode.FileSystemError(`Invalid file path: ${filePath}`)
         }
         const uri = vscode.Uri.joinPath(vscode.Uri.parse('localfs://dummyhost/'), uriPath)
         return uri
@@ -169,6 +171,9 @@ export class LocalFs implements vscode.FileSystemProvider {
         const targetPath = this.toFilePath(target)
         if (!fs.existsSync(targetPath) || options?.overwrite) {
             return fs.promises.rename(sourcePath, targetPath)
+        } else {
+            this.addLogMessage(`rename failed. A target file exists: ${target.toString(true)}`)
+            return
         }
         return
     }
@@ -193,13 +198,18 @@ export class LocalFs implements vscode.FileSystemProvider {
         if (fs.existsSync(filePath)) {
             if (options.overwrite) {
                 return fs.promises.writeFile(filePath, content)
+            } else {
+                this.addLogMessage(`writeFile failes. The file exists: ${uri.toString(true)}`)
+                return
             }
         } else {
             if (options.create) {
                 return fs.promises.writeFile(filePath, content)
+            } else {
+                this.addLogMessage(`writeFile failes. The file does not exist: ${uri.toString(true)}`)
+                return
             }
         }
-        return
     }
 
     watch(uri: vscode.Uri, options: { recursive: boolean, excludes: string[] }) {
