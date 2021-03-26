@@ -110,6 +110,31 @@ export class LocalFs implements vscode.FileSystemProvider {
         })
     }
 
+    assertParentDirExists(filePath: string) {
+        const dirname = path.dirname(filePath)
+        if (!fs.existsSync(dirname)) {
+            const msg = `The parent dir does not exist: ${dirname} for ${filePath}`
+            this.addLogMessage(msg)
+            throw vscode.FileSystemError.FileNotFound(msg)
+        }
+    }
+
+    catchPermissionError(cb: () => Promise<void>, filePath: string) {
+        try {
+            return cb()
+        } catch (err) {
+            if (err.code === 'EACCES') {
+                const msg = `writeFile failes. EACCES: ${filePath}`
+                this.addLogMessage(msg)
+                throw vscode.FileSystemError.NoPermissions(msg)
+            } else {
+                const msg = `writeFile unknown error ${err.message}: ${filePath}`
+                this.addLogMessage(msg)
+                throw new vscode.FileSystemError(msg)
+            }
+        }
+    }
+
     private getFileType(ent: FileTypeBase): vscode.FileType {
         if (ent.isSymbolicLink()) {
             return vscode.FileType.SymbolicLink
@@ -125,8 +150,16 @@ export class LocalFs implements vscode.FileSystemProvider {
     async createDirectory(uri: vscode.Uri) {
         this.addLogMessage(`createDirectory called: ${uri.toString(true)}`)
         const dirPath = this.toFilePath(uri)
-        return fs.promises.mkdir(dirPath, {recursive: true})
+        this.assertParentDirExists(dirPath)
+        if (fs.existsSync(dirPath)) {
+            throw vscode.FileSystemError.FileExists(dirPath)
+        }
+        return this.catchPermissionError(
+            () => fs.promises.mkdir(dirPath),
+            dirPath
+        )
     }
+
 
     async copy(source: vscode.Uri, target: vscode.Uri, options?: { overwrite?: boolean }) {
         this.addLogMessage(`copy called: source: ${source.toString(true)} target: ${target.toString(true)}`)
@@ -196,7 +229,10 @@ export class LocalFs implements vscode.FileSystemProvider {
         const filePath = this.toFilePath(uri)
         if (fs.existsSync(filePath)) {
             if (options.overwrite) {
-                return this.writeFileImpl(filePath, content)
+                return this.catchPermissionError(
+                    () => fs.promises.writeFile(filePath, content),
+                    filePath
+                )
             } else {
                 const msg = `writeFile failes. The file exists: ${uri.toString(true)}`
                 this.addLogMessage(msg)
@@ -210,27 +246,14 @@ export class LocalFs implements vscode.FileSystemProvider {
                     this.addLogMessage(msg)
                     throw vscode.FileSystemError.FileNotFound(msg)
                 }
-                return this.writeFileImpl(filePath, content)
+                return this.catchPermissionError(
+                    () => fs.promises.writeFile(filePath, content),
+                    filePath
+                )
             } else {
                 const msg = `writeFile failes. The file does not exist: ${uri.toString(true)}`
                 this.addLogMessage(msg)
                 throw vscode.FileSystemError.FileNotFound(msg)
-            }
-        }
-    }
-
-    writeFileImpl(filePath: string, content: Uint8Array) {
-        try {
-            return fs.promises.writeFile(filePath, content)
-        } catch (err) {
-            if (err.code === 'EACCES') {
-                const msg = `writeFile failes. EACCES: ${filePath}`
-                this.addLogMessage(msg)
-                throw vscode.FileSystemError.NoPermissions(msg)
-            } else {
-                const msg = `writeFile unknown error ${err.message}: ${filePath}`
-                this.addLogMessage(msg)
-                throw new vscode.FileSystemError(msg)
             }
         }
     }
