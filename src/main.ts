@@ -24,7 +24,7 @@ interface FileTypeBase {
 
 export class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
-    private readonly fswatcher = chokidar.watch([], {usePolling: true})
+    private readonly fswatcher = chokidar.watch([])
     private readonly globalState: vscode.Memento
     private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
 
@@ -38,6 +38,10 @@ export class LocalFs implements vscode.FileSystemProvider {
             })
         })
         this.fswatcher.on('add', (filePath: string) => {
+            if (this.isIgnoredFilePath(filePath)) {
+                this.addLogMessage(`change add ignored: ${filePath}`)
+                return
+            }
             this.onDidChangeFileEventCbSet.forEach( cb => {
                 this.addLogMessage(`add detected: ${filePath}`)
                 const uri = this.toLocalFsUri(filePath)
@@ -62,6 +66,14 @@ export class LocalFs implements vscode.FileSystemProvider {
         return rootDir
     }
 
+    addLogMessage(message: string) {
+        this.logPanel.append(`[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}\n`)
+    }
+
+    isIgnoredFilePath(filePath: string): boolean {
+        return /\b\.git\b|\bnode_modules\b/.exec(filePath) ? true : false
+    }
+
     toFilePath(uri: vscode.Uri) {
         if (uri.scheme === 'file') {
             return uri.fsPath
@@ -72,10 +84,6 @@ export class LocalFs implements vscode.FileSystemProvider {
         } else {
             throw new vscode.FileSystemError(`Unknown scheme: ${uri.toString(true)}`)
         }
-    }
-
-    addLogMessage(message: string) {
-        this.logPanel.append(`[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}\n`)
     }
 
     toLocalFsUri(filePath: string) {
@@ -278,6 +286,10 @@ export class LocalFs implements vscode.FileSystemProvider {
             this.addLogMessage('localfs watch: options ignored.')
         }
         const filePath = this.toFilePath(uri)
+        if (this.isIgnoredFilePath(filePath)) {
+            this.addLogMessage(`watch ignored: ${filePath}`)
+            return new vscode.Disposable( () => {} )
+        }
         this.fswatcher.add(filePath)
         const diposable = new vscode.Disposable( () => this.fswatcher.unwatch(filePath) )
         return diposable
