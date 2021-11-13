@@ -130,7 +130,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     catchPermissionError(cb: () => Promise<void>, filePath: string) {
         try {
             return cb()
-        } catch (err) {
+        } catch (err: any) {
             if (err.code === 'EACCES') {
                 const msg = `writeFile failes. EACCES: ${filePath}`
                 this.addLogMessage(msg)
