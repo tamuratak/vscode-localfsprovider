@@ -1,7 +1,7 @@
 {
   "name": "vscode-localfsprovider",
   "displayName": "Local File System Provider",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "Local File System Provider",
@@ -11,7 +11,7 @@
     "url": "https://github.com/tamuratak/vscode-localfsprovider.git"
   },
   "engines": {
-    "vscode": "^1.51.0"
+    "vscode": "^1.62.0"
   },
   "main": "./out/src/main.js",
   "activationEvents": [
@@ -39,18 +39,17 @@
     }
   },
   "dependencies": {
-    "chokidar": "3.5.1"
+    "chokidar": "3.5.2"
   },
   "devDependencies": {
     "@types/node": "^12",
-    "@types/vscode": "1.51.0",
-    "@typescript-eslint/eslint-plugin": "^4.19.0",
-    "@typescript-eslint/parser": "^4.19.0",
-    "eslint": "^7.22.0",
-    "husky": "^4.3.8",
-    "rimraf": "^3.0.2",
-    "typescript": "^4.2.3",
-    "vsce": "^1.87.0"
+    "@types/vscode": "1.62.0",
+    "@typescript-eslint/eslint-plugin": "5.3.1",
+    "@typescript-eslint/parser": "5.3.1",
+    "eslint": "8.2.0",
+    "rimraf": "3.0.2",
+    "typescript": "4.4.4",
+    "vsce": "2.3.0"
   },
   "husky": {
     "hooks": {
