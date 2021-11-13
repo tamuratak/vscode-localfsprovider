@@ -51,11 +51,6 @@
     "typescript": "4.4.4",
     "vsce": "2.3.0"
   },
-  "husky": {
-    "hooks": {
-      "pre-commit": "eslint --cache --ext .ts ."
-    }
-  },
   "scripts": {
     "clean": "rimraf out/ .eslintcache",
     "compile": "tsc -p ./",
