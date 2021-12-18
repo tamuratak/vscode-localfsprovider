@@ -24,7 +24,7 @@ interface FileTypeBase {
 
 export class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
-    private readonly fswatcher = chokidar.watch([])
+    private readonly fswatcher = chokidar.watch([], {usePolling: true})
     private readonly globalState: vscode.Memento
     private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
 
