@@ -1,7 +1,7 @@
 {
   "name": "vscode-localfsprovider",
   "displayName": "Local File System Provider",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "tamuratak",
   "license": "MIT",
   "description": "Local File System Provider",
@@ -44,12 +44,12 @@
   "devDependencies": {
     "@types/node": "^12",
     "@types/vscode": "1.62.0",
-    "@typescript-eslint/eslint-plugin": "5.3.1",
-    "@typescript-eslint/parser": "5.3.1",
-    "eslint": "8.2.0",
+    "@typescript-eslint/eslint-plugin": "5.7.0",
+    "@typescript-eslint/parser": "5.7.0",
+    "eslint": "8.5.0",
     "rimraf": "3.0.2",
-    "typescript": "4.4.4",
-    "vsce": "2.3.0"
+    "typescript": "4.5.4",
+    "vsce": "2.5.3"
   },
   "scripts": {
     "clean": "rimraf out/ .eslintcache",
