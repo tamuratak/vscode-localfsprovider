@@ -1,4 +1,5 @@
 out/
+tmp/
 .vscode-test/
 node_modules/
 .idea/
