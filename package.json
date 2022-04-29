@@ -42,14 +42,14 @@
     "chokidar": "3.5.2"
   },
   "devDependencies": {
-    "@types/node": "^12",
+    "@types/node": "16.11.27",
     "@types/vscode": "1.62.0",
-    "@typescript-eslint/eslint-plugin": "5.7.0",
-    "@typescript-eslint/parser": "5.7.0",
-    "eslint": "8.5.0",
+    "@typescript-eslint/eslint-plugin": "5.21.0",
+    "@typescript-eslint/parser": "5.21.0",
+    "eslint": "8.14.0",
     "rimraf": "3.0.2",
-    "typescript": "4.5.4",
-    "vsce": "2.5.3"
+    "typescript": "4.6.4",
+    "vsce": "2.7.0"
   },
   "scripts": {
     "clean": "rimraf out/ .eslintcache",
