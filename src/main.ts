@@ -5,15 +5,23 @@ import * as vscode from 'vscode'
 
 
 export function activate(context: vscode.ExtensionContext) {
-    const localfs = new LocalFs(context)
+    const localfs = new LocalFsService(context)
     if (!localfs) {
         return
     }
     console.log('LocalFS says "Hello"')
-    context.subscriptions.push(vscode.workspace.registerFileSystemProvider('localfs', localfs, { isCaseSensitive: true }))
+    context.subscriptions.push(vscode.workspace.registerFileSystemProvider('localfs', localfs.localFsProvider, { isCaseSensitive: true }))
     context.subscriptions.push(vscode.commands.registerCommand('localfs.workspaceInit', _ => {
-        localfs.openLocalFsWorkspace()
+        localfs.localFsProvider.openLocalFsWorkspace()
     }))
+}
+
+class LocalFsAbsUriHandler implements vscode.UriHandler {
+
+    handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
+        if (uri.scheme === 'localfsabs')
+    }
+
 }
 
 interface FileTypeBase {
@@ -22,14 +30,35 @@ interface FileTypeBase {
     isSymbolicLink(): boolean
 }
 
-export class LocalFs implements vscode.FileSystemProvider {
+class LocalFsService {
+    readonly localFsProvider: LocalFs
+    readonly localFsAbsUriHandler: LocalFsAbsUriHandler
+
+    constructor() {
+        this.localFsProvider = new LocalFs()
+        this.localFsAbsUriHandler = new LocalFsAbsUriHandler()
+    }
+
+    async openLocalFsWorkspace(): Promise<boolean | undefined> {
+        const uris = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false })
+        const uri = uris?.[0]
+        if (!uri) {
+            return
+        }
+        const workspaceUri = vscode.Uri.parse('localfs://dummyhost/')
+        return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: workspaceUri, name: 'localfs - Sample' })
+    }
+
+}
+
+class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
     private readonly fswatcher = chokidar.watch([], {usePolling: true})
-    private readonly globalState: vscode.Memento
+    private readonly hostFilePathMap = new Map<string, string>()
+    private currentHost = 0
     private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
 
-    constructor(context: vscode.ExtensionContext) {
-        this.globalState = context.globalState
+    constructor() {
         this.fswatcher.on('change', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
                 this.addLogMessage(`change detected: ${filePath}`)
@@ -57,7 +86,7 @@ export class LocalFs implements vscode.FileSystemProvider {
         })
     }
 
-    getRootDir() {
+    getRootDir(uri: vscode.Uri) {
         const rootDirUriString = this.globalState.get('dummyhost') as string
         if (!rootDirUriString) {
             throw new vscode.FileSystemError('rootDir not found.')
@@ -78,7 +107,7 @@ export class LocalFs implements vscode.FileSystemProvider {
         if (uri.scheme === 'file') {
             return uri.fsPath
         } else if (uri.scheme === 'localfs') {
-            const rootDir = this.getRootDir()
+            const rootDir = this.getRootDir(uri)
             const fileUri = vscode.Uri.joinPath(rootDir, uri.path)
             return fileUri.fsPath
         } else {
@@ -87,7 +116,7 @@ export class LocalFs implements vscode.FileSystemProvider {
     }
 
     toLocalFsUri(filePath: string) {
-        const rootDir = this.getRootDir()
+        const rootDir = this.getRootDir(uri)
         let uriPath = filePath
         if (uriPath.startsWith(rootDir.fsPath)) {
             uriPath = uriPath.slice(rootDir.fsPath.length)
@@ -98,16 +127,6 @@ export class LocalFs implements vscode.FileSystemProvider {
         return uri
     }
 
-    async openLocalFsWorkspace(): Promise<boolean | undefined> {
-        const uris = await vscode.window.showOpenDialog({ canSelectFiles: false, canSelectFolders: true, canSelectMany: false })
-        const uri = uris?.[0]
-        if (!uri) {
-            return
-        }
-        this.globalState.update('dummyhost', uri.toString(true))
-        const workspaceUri = vscode.Uri.parse('localfs://dummyhost/')
-        return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: workspaceUri, name: 'localfs - Sample' })
-    }
 
     assertExists(...uris: vscode.Uri[]) {
         uris.forEach(uri => {
