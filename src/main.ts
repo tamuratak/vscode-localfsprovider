@@ -5,7 +5,7 @@ import * as vscode from 'vscode'
 
 
 export function activate(context: vscode.ExtensionContext) {
-    const localfs = new LocalFsService(context)
+    const localfs = new LocalFsService()
     if (!localfs) {
         return
     }
@@ -51,13 +51,13 @@ class LocalFsService {
 
 }
 
-type HostPathPair = {
+type HostBaseDirPair = {
     host: string
     baseDir: string
 }
 
 class HostStore {
-    private store: HostPathPair[] = []
+    private store: HostBaseDirPair[] = []
     private currentHost = 0
 
     createHost(filePath: string): string | undefined {
@@ -71,17 +71,17 @@ class HostStore {
     }
 
     hasHost(filePath: string): boolean {
-        return !!this.store.find((item) => item.baseDir === filePath)
+        return !!this.getHost(filePath)
     }
 
-    getBaseDir(uri: vscode.Uri): string | undefined {
+    getBaseDir(uri: vscode.Uri): HostBaseDirPair | undefined {
         const pair = this.store.find((item) => item.host === uri.authority)
-        return pair?.baseDir
+        return pair
     }
     
-    getHost(filePath: string): string | undefined {
-        const pair = this.store.find((item) => item.baseDir === filePath)
-        return pair?.host
+    getHost(filePath: string): HostBaseDirPair | undefined {
+        const pair = this.store.find((item) => filePath.startsWith(item.baseDir))
+        return pair
     }
 
 }
@@ -89,8 +89,7 @@ class HostStore {
 class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
     private readonly fswatcher = chokidar.watch([], {usePolling: true})
-    private readonly hostFilePathMap = new Map<string, string>()
-    private currentHost = 0
+    private readonly hostStore = new HostStore()
     private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
 
     constructor() {
@@ -122,7 +121,7 @@ class LocalFs implements vscode.FileSystemProvider {
     }
 
     getRootDir(uri: vscode.Uri) {
-        const rootDirUriString = this.globalState.get('dummyhost') as string
+        const rootDirUriString = this.hostStore.getBaseDir(uri)?.baseDir
         if (!rootDirUriString) {
             throw new vscode.FileSystemError('rootDir not found.')
         }
@@ -151,14 +150,12 @@ class LocalFs implements vscode.FileSystemProvider {
     }
 
     toLocalFsUri(filePath: string) {
-        const rootDir = this.getRootDir(uri)
-        let uriPath = filePath
-        if (uriPath.startsWith(rootDir.fsPath)) {
-            uriPath = uriPath.slice(rootDir.fsPath.length)
-        } else {
+        const pair = this.hostStore.getHost(filePath)
+        if (!pair) {
             throw new vscode.FileSystemError(`Invalid file path: ${filePath}`)
         }
-        const uri = vscode.Uri.joinPath(vscode.Uri.parse('localfs://dummyhost/'), uriPath)
+        const uriPath = filePath.slice(pair.baseDir.length)
+        const uri = vscode.Uri.joinPath(vscode.Uri.parse(`localfs://${pair.host}/`), uriPath)
         return uri
     }
 
