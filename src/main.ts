@@ -51,6 +51,41 @@ class LocalFsService {
 
 }
 
+type HostPathPair = {
+    host: string
+    baseDir: string
+}
+
+class HostStore {
+    private store: HostPathPair[] = []
+    private currentHost = 0
+
+    createHost(filePath: string): string | undefined {
+        if (!this.hasHost(filePath)) {
+            const host = `dummyhost${this.currentHost}`
+            this.currentHost += 1
+            this.store.push({host, baseDir: filePath})
+            return host
+        }
+        return
+    }
+
+    hasHost(filePath: string): boolean {
+        return !!this.store.find((item) => item.baseDir === filePath)
+    }
+
+    getBaseDir(uri: vscode.Uri): string | undefined {
+        const pair = this.store.find((item) => item.host === uri.authority)
+        return pair?.baseDir
+    }
+    
+    getHost(filePath: string): string | undefined {
+        const pair = this.store.find((item) => item.baseDir === filePath)
+        return pair?.host
+    }
+
+}
+
 class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
     private readonly fswatcher = chokidar.watch([], {usePolling: true})
