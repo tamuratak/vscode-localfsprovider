@@ -12,14 +12,16 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('LocalFS says "Hello"')
     context.subscriptions.push(vscode.workspace.registerFileSystemProvider('localfs', localfs.localFsProvider, { isCaseSensitive: true }))
     context.subscriptions.push(vscode.commands.registerCommand('localfs.workspaceInit', _ => {
-        localfs.localFsProvider.openLocalFsWorkspace()
+        localfs.openLocalFsWorkspace()
     }))
 }
 
 class LocalFsAbsUriHandler implements vscode.UriHandler {
 
     handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
-        if (uri.scheme === 'localfsabs')
+        if (uri.scheme === 'localfsabs') {
+            
+        }
     }
 
 }
@@ -143,7 +145,7 @@ class LocalFs implements vscode.FileSystemProvider {
             const baseDirUri = this.getLocalBaseDir(uri)
             if (baseDirUri) {
                 const filePathUri = vscode.Uri.joinPath(baseDirUri, uri.path)
-                return filePathUri
+                return filePathUri.fsPath
             } else {
                 throw new vscode.FileSystemError(`BaseDir not found: ${uri.toString(true)}`)
             }
