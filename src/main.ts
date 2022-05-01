@@ -36,12 +36,21 @@ interface FileTypeBase {
     isSymbolicLink(): boolean
 }
 
+class Logger {
+    private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
+
+    addLogMessage(message: string) {
+        this.logPanel.append(`[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}\n`)
+    }
+}
+
 class LocalFsService {
     readonly localFsProvider: LocalFs
     readonly localFsAbsUriHandler: LocalFsAbsUriHandler
+    readonly logger = new Logger()
 
     constructor(context: vscode.ExtensionContext) {
-        this.localFsProvider = new LocalFs(context)
+        this.localFsProvider = new LocalFs(context, this.logger)
         this.localFsAbsUriHandler = new LocalFsAbsUriHandler(this)
     }
 
@@ -125,9 +134,10 @@ class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
     private readonly fswatcher = chokidar.watch([], {usePolling: true})
     private readonly hostStore: HostStore
-    private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
+    private readonly logger: Logger
 
-    constructor(context: vscode.ExtensionContext) {
+    constructor(context: vscode.ExtensionContext, logger: Logger) {
+        this.logger = logger
         this.hostStore = new HostStore(context)
         this.fswatcher.on('change', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
@@ -173,7 +183,7 @@ class LocalFs implements vscode.FileSystemProvider {
     }
 
     addLogMessage(message: string) {
-        this.logPanel.append(`[${new Date().toLocaleTimeString(undefined, { hour12: false })}] ${message}\n`)
+        this.logger.addLogMessage(message)
     }
 
     isIgnoredFilePath(filePath: string): boolean {
