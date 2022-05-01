@@ -123,15 +123,17 @@ class HostStore {
 
     createHost(localUri: vscode.Uri): string | undefined {
         const filePath = localUri.fsPath
-        if (!this.hasHost(filePath)) {
-            const host = `dummyhost${this.currentHostSuffix}`
+        const {host,} = this.getHost(filePath) ?? {}
+        if (!host) {
+            const newHost = `dummyhost${this.currentHostSuffix}`
             this.currentHostSuffix += 1
-            this.store.push({host, baseDir: filePath})
+            this.store.push({host: newHost, baseDir: filePath})
             this.updateGlobalState()
-            this.logger.addLogMessage(`Create a new dummyhost: ${host}`)
+            this.logger.addLogMessage(`Create a new dummyhost: ${newHost}`)
+            return newHost
+        } else {
             return host
         }
-        return
     }
 
     hasHost(filePath: string): boolean {
