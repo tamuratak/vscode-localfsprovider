@@ -20,7 +20,7 @@ class LocalFsAbsUriHandler implements vscode.UriHandler {
 
     handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
         if (uri.scheme === 'localfsabs') {
-            
+
         }
     }
 
@@ -122,8 +122,8 @@ class LocalFs implements vscode.FileSystemProvider {
         })
     }
 
-    getLocalBaseDir(uri: vscode.Uri): vscode.Uri | undefined {
-        const baseDir = this.hostStore.get(uri)?.baseDir
+    getLocalBaseDir(vitrualUri: vscode.Uri): vscode.Uri | undefined {
+        const baseDir = this.hostStore.get(vitrualUri)?.baseDir
         if (baseDir) {
             return vscode.Uri.file(baseDir)
         }
