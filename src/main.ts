@@ -74,7 +74,7 @@ class HostStore {
         return !!this.getHost(filePath)
     }
 
-    getBaseDir(uri: vscode.Uri): HostBaseDirPair | undefined {
+    get(uri: vscode.Uri): HostBaseDirPair | undefined {
         const pair = this.store.find((item) => item.host === uri.authority)
         return pair
     }
@@ -120,13 +120,12 @@ class LocalFs implements vscode.FileSystemProvider {
         })
     }
 
-    getRootDir(uri: vscode.Uri) {
-        const rootDirUriString = this.hostStore.getBaseDir(uri)?.baseDir
-        if (!rootDirUriString) {
-            throw new vscode.FileSystemError('rootDir not found.')
+    getLocalBaseDir(uri: vscode.Uri): vscode.Uri | undefined {
+        const baseDir = this.hostStore.get(uri)?.baseDir
+        if (baseDir) {
+            return vscode.Uri.file(baseDir)
         }
-        const rootDir = vscode.Uri.parse(rootDirUriString)
-        return rootDir
+        return
     }
 
     addLogMessage(message: string) {
@@ -141,9 +140,13 @@ class LocalFs implements vscode.FileSystemProvider {
         if (uri.scheme === 'file') {
             return uri.fsPath
         } else if (uri.scheme === 'localfs') {
-            const rootDir = this.getRootDir(uri)
-            const fileUri = vscode.Uri.joinPath(rootDir, uri.path)
-            return fileUri.fsPath
+            const baseDirUri = this.getLocalBaseDir(uri)
+            if (baseDirUri) {
+                const filePathUri = vscode.Uri.joinPath(baseDirUri, uri.path)
+                return filePathUri
+            } else {
+                throw new vscode.FileSystemError(`BaseDir not found: ${uri.toString(true)}`)
+            }
         } else {
             throw new vscode.FileSystemError(`Unknown scheme: ${uri.toString(true)}`)
         }
