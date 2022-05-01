@@ -5,23 +5,27 @@ import * as vscode from 'vscode'
 
 
 export function activate(context: vscode.ExtensionContext) {
-    const localfs = new LocalFsService()
-    if (!localfs) {
-        return
-    }
+    const localFsService = new LocalFsService()
     console.log('LocalFS says "Hello"')
-    context.subscriptions.push(vscode.workspace.registerFileSystemProvider('localfs', localfs.localFsProvider, { isCaseSensitive: true }))
+    context.subscriptions.push(
+        vscode.workspace.registerFileSystemProvider('localfs', localFsService.localFsProvider, { isCaseSensitive: true }),
+        vscode.window.registerUriHandler(localFsService.localFsAbsUriHandler)
+    )
+
     context.subscriptions.push(vscode.commands.registerCommand('localfs.workspaceInit', _ => {
-        localfs.openLocalFsWorkspace()
+        localFsService.openLocalFsWorkspace()
     }))
 }
 
 class LocalFsAbsUriHandler implements vscode.UriHandler {
+    private readonly localFsService: LocalFsService
+
+    constructor(localFsService: LocalFsService) {
+        this.localFsService = localFsService
+    }
 
     handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
-        if (uri.scheme === 'localfsabs') {
-
-        }
+        this.localFsService.fromAbsLocalFsUri(uri)
     }
 
 }
@@ -38,7 +42,7 @@ class LocalFsService {
 
     constructor() {
         this.localFsProvider = new LocalFs()
-        this.localFsAbsUriHandler = new LocalFsAbsUriHandler()
+        this.localFsAbsUriHandler = new LocalFsAbsUriHandler(this)
     }
 
     async openLocalFsWorkspace(): Promise<boolean | undefined> {
@@ -47,9 +51,21 @@ class LocalFsService {
         if (!uri) {
             return
         }
-        const workspaceUri = this.localFsProvider.createVirtualHost(uri)
+        return this.createLocalFsWorkspace(uri)
+    }
+
+    createLocalFsWorkspace(localUri: vscode.Uri): boolean | undefined {
+        const workspaceUri = this.localFsProvider.createVirtualHost(localUri)
         if (workspaceUri) {
             return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: workspaceUri, name: 'localfs - Sample' })
+        }
+        return
+    }
+
+    fromAbsLocalFsUri(vitrualUri: vscode.Uri) {
+        if (vitrualUri.scheme === 'localfsabs') {
+            const localUri = vitrualUri.with({ scheme: 'file' })
+            return this.createLocalFsWorkspace(localUri)
         }
         return
     }
@@ -57,12 +73,12 @@ class LocalFsService {
 }
 
 type HostBaseDirPair = {
-    host: string
+    host: string,
     baseDir: string
 }
 
 class HostStore {
-    private store: HostBaseDirPair[] = []
+    private readonly store: HostBaseDirPair[] = []
     private currentHost = 0
 
     createHost(localUri: vscode.Uri): string | undefined {
@@ -84,7 +100,7 @@ class HostStore {
         const pair = this.store.find((item) => item.host === uri.authority)
         return pair
     }
-    
+
     getHost(filePath: string): HostBaseDirPair | undefined {
         const pair = this.store.find((item) => filePath.startsWith(item.baseDir))
         return pair
