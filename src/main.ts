@@ -128,6 +128,7 @@ class HostStore {
             this.currentHostSuffix += 1
             this.store.push({host, baseDir: filePath})
             this.updateGlobalState()
+            this.logger.addLogMessage(`Create a new dummyhost: ${host}`)
             return host
         }
         return
