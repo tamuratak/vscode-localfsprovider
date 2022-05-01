@@ -86,19 +86,21 @@ type HostBaseDirPair = {
     baseDir: string
 }
 
+const HostStoreStateId = 'localFsHostBaseDirPair'
+
 class HostStore {
     private readonly store: HostBaseDirPair[]
     private currentHost = 0
     private readonly globalState: vscode.Memento
-    private readonly stateId = 'localFsHostBaseDirPair'
     private readonly logger: Logger
 
     constructor(context: vscode.ExtensionContext, logger: Logger) {
         this.logger = logger
         this.globalState = context.globalState
-        const ret = this.globalState.get<HostBaseDirPair[]>(this.stateId)
+        const ret = this.globalState.get<HostBaseDirPair[]>(HostStoreStateId)
+        this.logger.addLogMessage(`HostStore globalState: ${JSON.stringify(ret)}`)
         if (!ret) {
-            this.globalState.update(this.stateId, [])
+            this.globalState.update(HostStoreStateId, [])
             this.store = []
         } else {
             this.store = ret
