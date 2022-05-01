@@ -5,7 +5,7 @@ import * as vscode from 'vscode'
 
 
 export function activate(context: vscode.ExtensionContext) {
-    const localFsService = new LocalFsService()
+    const localFsService = new LocalFsService(context)
     console.log('LocalFS says "Hello"')
     context.subscriptions.push(
         vscode.workspace.registerFileSystemProvider('localfs', localFsService.localFsProvider, { isCaseSensitive: true }),
@@ -40,8 +40,8 @@ class LocalFsService {
     readonly localFsProvider: LocalFs
     readonly localFsAbsUriHandler: LocalFsAbsUriHandler
 
-    constructor() {
-        this.localFsProvider = new LocalFs()
+    constructor(context: vscode.ExtensionContext) {
+        this.localFsProvider = new LocalFs(context)
         this.localFsAbsUriHandler = new LocalFsAbsUriHandler(this)
     }
 
@@ -78,8 +78,21 @@ type HostBaseDirPair = {
 }
 
 class HostStore {
-    private readonly store: HostBaseDirPair[] = []
+    private readonly store: HostBaseDirPair[]
     private currentHost = 0
+    private readonly globalState: vscode.Memento
+    private readonly stateId = 'localFsHostBaseDirPair'
+
+    constructor(context: vscode.ExtensionContext) {
+        this.globalState = context.globalState
+        const ret = this.globalState.get<HostBaseDirPair[]>(this.stateId)
+        if (!ret) {
+            this.globalState.update(this.stateId, [])
+            this.store = []
+        } else {
+            this.store = ret
+        }
+    }
 
     createHost(localUri: vscode.Uri): string | undefined {
         const filePath = localUri.fsPath
@@ -111,10 +124,11 @@ class HostStore {
 class LocalFs implements vscode.FileSystemProvider {
     private readonly onDidChangeFileEventCbSet: Set<(events: vscode.FileChangeEvent[]) => void> = new Set()
     private readonly fswatcher = chokidar.watch([], {usePolling: true})
-    private readonly hostStore = new HostStore()
+    private readonly hostStore: HostStore
     private readonly logPanel: vscode.OutputChannel = vscode.window.createOutputChannel('LocalFs')
 
-    constructor() {
+    constructor(context: vscode.ExtensionContext) {
+        this.hostStore = new HostStore(context)
         this.fswatcher.on('change', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
                 this.addLogMessage(`change detected: ${filePath}`)
