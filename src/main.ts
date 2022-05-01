@@ -47,8 +47,11 @@ class LocalFsService {
         if (!uri) {
             return
         }
-        const workspaceUri = vscode.Uri.parse('localfs://dummyhost/')
-        return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: workspaceUri, name: 'localfs - Sample' })
+        const workspaceUri = this.localFsProvider.createVirtualHost(uri)
+        if (workspaceUri) {
+            return vscode.workspace.updateWorkspaceFolders(0, 0, { uri: workspaceUri, name: 'localfs - Sample' })
+        }
+        return
     }
 
 }
@@ -62,7 +65,8 @@ class HostStore {
     private store: HostBaseDirPair[] = []
     private currentHost = 0
 
-    createHost(filePath: string): string | undefined {
+    createHost(localUri: vscode.Uri): string | undefined {
+        const filePath = localUri.fsPath
         if (!this.hasHost(filePath)) {
             const host = `dummyhost${this.currentHost}`
             this.currentHost += 1
@@ -120,6 +124,14 @@ class LocalFs implements vscode.FileSystemProvider {
                 cb([{ type: vscode.FileChangeType.Deleted, uri }])
             })
         })
+    }
+
+    createVirtualHost(localUri: vscode.Uri) {
+        const host = this.hostStore.createHost(localUri)
+        if (host) {
+            return vscode.Uri.parse(`localfs://${host}/`)
+        }
+        return
     }
 
     getLocalBaseDir(vitrualUri: vscode.Uri): vscode.Uri | undefined {
