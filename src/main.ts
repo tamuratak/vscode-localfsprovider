@@ -91,8 +91,10 @@ class HostStore {
     private currentHost = 0
     private readonly globalState: vscode.Memento
     private readonly stateId = 'localFsHostBaseDirPair'
+    private readonly logger: Logger
 
-    constructor(context: vscode.ExtensionContext) {
+    constructor(context: vscode.ExtensionContext, logger: Logger) {
+        this.logger = logger
         this.globalState = context.globalState
         const ret = this.globalState.get<HostBaseDirPair[]>(this.stateId)
         if (!ret) {
@@ -138,7 +140,7 @@ class LocalFs implements vscode.FileSystemProvider {
 
     constructor(context: vscode.ExtensionContext, logger: Logger) {
         this.logger = logger
-        this.hostStore = new HostStore(context)
+        this.hostStore = new HostStore(context, logger)
         this.fswatcher.on('change', (filePath: string) => {
             this.onDidChangeFileEventCbSet.forEach( cb => {
                 this.addLogMessage(`change detected: ${filePath}`)
