@@ -87,10 +87,11 @@ type HostBaseDirPair = {
 }
 
 const HostStoreStateId = 'localFsHostBaseDirPair'
+const HostStoreCurrentHostSuffixId = 'HostStoreCurrentHostSuffixId'
 
 class HostStore {
     private readonly store: HostBaseDirPair[]
-    private currentHost = 0
+    private currentHostSuffix: number
     private readonly globalState: vscode.Memento
     private readonly logger: Logger
 
@@ -98,21 +99,35 @@ class HostStore {
         this.logger = logger
         this.globalState = context.globalState
         const ret = this.globalState.get<HostBaseDirPair[]>(HostStoreStateId)
-        this.logger.addLogMessage(`HostStore globalState: ${JSON.stringify(ret)}`)
+        this.logger.addLogMessage(`HostStore HostStoreState: ${JSON.stringify(ret)}`)
         if (!ret) {
-            this.globalState.update(HostStoreStateId, [])
             this.store = []
+            this.updateGlobalState()
         } else {
             this.store = ret
         }
+        const num = this.globalState.get<number>(HostStoreCurrentHostSuffixId)
+        this.logger.addLogMessage(`HostStore HostStoreCurrentHostSuffix: ${JSON.stringify(num)}`)
+        if (!num) {
+            this.currentHostSuffix = 0
+            this.updateGlobalState()
+        } else {
+            this.currentHostSuffix = num
+        }
+    }
+
+    updateGlobalState() {
+        this.globalState.update(HostStoreStateId, this.store)
+        this.globalState.update(HostStoreCurrentHostSuffixId, this.currentHostSuffix)
     }
 
     createHost(localUri: vscode.Uri): string | undefined {
         const filePath = localUri.fsPath
         if (!this.hasHost(filePath)) {
-            const host = `dummyhost${this.currentHost}`
-            this.currentHost += 1
+            const host = `dummyhost${this.currentHostSuffix}`
+            this.currentHostSuffix += 1
             this.store.push({host, baseDir: filePath})
+            this.updateGlobalState()
             return host
         }
         return
