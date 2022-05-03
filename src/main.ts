@@ -79,7 +79,7 @@ class LocalFsService {
     }
 
     fromAbsLocalFsUri(vitrualUri: vscode.Uri) {
-        this.logger.addLogMessage(`${vitrualUri.toString()}`)
+        this.logger.addLogMessage(`fromAbsLocalFsUri: ${vitrualUri.toString()}`)
         const localUri = vitrualUri.with({ scheme: 'file' })
         return this.createLocalFsWorkspace(localUri)
     }
