@@ -72,11 +72,9 @@ class LocalFsService {
     }
 
     fromAbsLocalFsUri(vitrualUri: vscode.Uri) {
-        if (vitrualUri.scheme === 'localfsabs') {
-            const localUri = vitrualUri.with({ scheme: 'file' })
-            return this.createLocalFsWorkspace(localUri)
-        }
-        return
+        this.logger.addLogMessage(`${vitrualUri.toString()}`)
+        const localUri = vitrualUri.with({ scheme: 'file' })
+        return this.createLocalFsWorkspace(localUri)
     }
 
 }
@@ -123,6 +121,13 @@ class HostStore {
 
     createHost(localUri: vscode.Uri): string | undefined {
         const filePath = localUri.fsPath
+        if (!fs.existsSync(filePath)) {
+            this.logger.addLogMessage(`Not found: ${filePath}`)
+            return
+        }
+        if (!fs.statSync(filePath).isDirectory()) {
+            this.logger.addLogMessage(`Is not directory: ${filePath}`)
+        }
         const {host,} = this.getHost(filePath) ?? {}
         if (!host) {
             const newHost = `dummyhost${this.currentHostSuffix}`
