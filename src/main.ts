@@ -4,7 +4,14 @@ import * as path from 'path'
 import * as vscode from 'vscode'
 
 
+export async function reset(context: vscode.ExtensionContext) {
+    for (const key of context.globalState.keys()) {
+        await context.globalState.update(key, undefined)
+    }
+}
+
 export function activate(context: vscode.ExtensionContext) {
+//    await reset(context)
     const localFsService = new LocalFsService(context)
     console.log('LocalFS says "Hello"')
     context.subscriptions.push(
@@ -79,16 +86,16 @@ class LocalFsService {
 
 }
 
-type HostBaseDirPair = {
+type HostLocalDirPair = {
     host: string,
-    baseDir: string
+    localDir: string
 }
 
-const HostStoreStateId = 'localFsHostBaseDirPair'
-const HostStoreCurrentHostSuffixId = 'HostStoreCurrentHostSuffixId'
+const HostLocalDirPairId = 'HostLocalDirPairId'
+const HostStoreCurrentHostSuffixId = 'CurrentHostSuffixId'
 
 class HostStore {
-    private readonly store: HostBaseDirPair[]
+    private readonly store: HostLocalDirPair[]
     private currentHostSuffix: number
     private readonly globalState: vscode.Memento
     private readonly logger: Logger
@@ -96,7 +103,7 @@ class HostStore {
     constructor(context: vscode.ExtensionContext, logger: Logger) {
         this.logger = logger
         this.globalState = context.globalState
-        const ret = this.globalState.get<HostBaseDirPair[]>(HostStoreStateId)
+        const ret = this.globalState.get<HostLocalDirPair[]>(HostLocalDirPairId)
         this.logger.addLogMessage(`HostStore HostStoreState: ${JSON.stringify(ret)}`)
         if (!ret) {
             this.store = []
@@ -115,7 +122,7 @@ class HostStore {
     }
 
     updateGlobalState() {
-        this.globalState.update(HostStoreStateId, this.store)
+        this.globalState.update(HostLocalDirPairId, this.store)
         this.globalState.update(HostStoreCurrentHostSuffixId, this.currentHostSuffix)
     }
 
@@ -132,7 +139,7 @@ class HostStore {
         if (!host) {
             const newHost = `dummyhost${this.currentHostSuffix}`
             this.currentHostSuffix += 1
-            this.store.push({host: newHost, baseDir: filePath})
+            this.store.push({host: newHost, localDir: filePath})
             this.updateGlobalState()
             this.logger.addLogMessage(`Create a new dummyhost: ${newHost}`)
             return newHost
@@ -145,13 +152,13 @@ class HostStore {
         return !!this.getHost(filePath)
     }
 
-    get(uri: vscode.Uri): HostBaseDirPair | undefined {
+    get(uri: vscode.Uri): HostLocalDirPair | undefined {
         const pair = this.store.find((item) => item.host === uri.authority)
         return pair
     }
 
-    getHost(filePath: string): HostBaseDirPair | undefined {
-        const pair = this.store.find((item) => filePath.startsWith(item.baseDir))
+    getHost(dirPath: string): HostLocalDirPair | undefined {
+        const pair = this.store.find((item) => dirPath === item.localDir)
         return pair
     }
 
@@ -202,7 +209,7 @@ class LocalFs implements vscode.FileSystemProvider {
     }
 
     getLocalBaseDir(vitrualUri: vscode.Uri): vscode.Uri | undefined {
-        const baseDir = this.hostStore.get(vitrualUri)?.baseDir
+        const baseDir = this.hostStore.get(vitrualUri)?.localDir
         if (baseDir) {
             return vscode.Uri.file(baseDir)
         }
@@ -238,7 +245,7 @@ class LocalFs implements vscode.FileSystemProvider {
         if (!pair) {
             throw new vscode.FileSystemError(`Invalid file path: ${filePath}`)
         }
-        const uriPath = filePath.slice(pair.baseDir.length)
+        const uriPath = filePath.slice(pair.localDir.length)
         const uri = vscode.Uri.joinPath(vscode.Uri.parse(`localfs://${pair.host}/`), uriPath)
         return uri
     }
